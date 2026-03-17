@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Moje slovíčka v5</title>
+
+<!-- PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Slovíčka v5">
+<meta name="theme-color" content="#F7F4EE">
+<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22Moje%20slov%C3%AD%C4%8Dka%22%2C%22short_name%22%3A%22Slov%C3%AD%C4%8Dka%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23F7F4EE%22%2C%22theme_color%22%3A%22%23F7F4EE%22%7D">
+
+<!-- iOS ikona — generovaná inline jako SVG→canvas→dataURL -->
+<script>
+(function(){
+  const c = document.createElement('canvas');
+  c.width = 180; c.height = 180;
+  const ctx = c.getContext('2d');
+  // Pozadí
+  ctx.fillStyle = '#2D5A27';
+  const r = 36;
+  ctx.beginPath();
+  ctx.moveTo(r,0); ctx.lineTo(180-r,0); ctx.quadraticCurveTo(180,0,180,r);
+  ctx.lineTo(180,180-r); ctx.quadraticCurveTo(180,180,180-r,180);
+  ctx.lineTo(r,180); ctx.quadraticCurveTo(0,180,0,180-r);
+  ctx.lineTo(0,r); ctx.quadraticCurveTo(0,0,r,0);
+  ctx.closePath(); ctx.fill();
+  // Písmeno S
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 110px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('S', 90, 96);
+  const link = document.createElement('link');
+  link.rel = 'apple-touch-icon';
+  link.href = c.toDataURL('image/png');
+  document.head.appendChild(link);
+})();
+</script>
+
+<style>
+  :root {
+    --bg: #F7F4EE;
+    --surface: #FFFFFF;
+    --surface2: #F0EDE6;
+    --border: rgba(0,0,0,0.10);
+    --border2: rgba(0,0,0,0.18);
+    --text: #1A1814;
+    --muted: #7A7568;
+    --accent: #2D5A27;
+    --accent-light: #EAF3DE;
+    --danger: #8B2020;
+    --danger-light: #FCEBEB;
+    --warn: #7A4A0A;
+    --warn-light: #FAEEDA;
+    --radius: 10px;
+    --radius-lg: 16px;
+    --font-mono: 'Menlo', 'Courier New', monospace;
+    --font-serif: 'Georgia', 'Times New Roman', serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: var(--font-mono);
+    background: var(--bg);
+    color: var(--text);
+    height: 100%;
+    height: -webkit-fill-available;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  /* Layout */
+  .shell {
+    max-width: 600px; margin: 0 auto;
+    height: 100%; height: -webkit-fill-available;
+    display: flex; flex-direction: column;
+    padding: max(1rem, env(safe-area-inset-top)) 1.25rem calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
+  }
+  header { margin-bottom: 0.5rem; flex-shrink: 0; }
+  .logo { font-family: var(--font-serif); font-size: 22px; color: var(--text); letter-spacing: -0.5px; }
+  .logo em { font-style: italic; color: var(--accent); }
+  .subtitle { font-size: 11px; color: var(--muted); margin-top: 2px; letter-spacing: 0.04em; }
+
+  /* Nav tabs */
+  .nav { display: flex; gap: 4px; margin-bottom: 1rem; background: var(--surface2); border-radius: var(--radius); padding: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; flex-shrink: 0; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav-btn { flex: 0 0 auto; padding: 7px 12px; border: none; border-radius: 8px; font-family: var(--font-mono); font-size: 12px; cursor: pointer; background: transparent; color: var(--muted); transition: all 0.15s; letter-spacing: 0.02em; white-space: nowrap; }
+  .nav-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
+  .card + .card { margin-top: 12px; }
+
+  /* Screens */
+  .screen { display: none; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* Quiz screens specifically — no scroll, everything fits */
+  #screen-quiz-choice.active, #screen-quiz-type.active {
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  #quiz-root-choice, #quiz-root-type {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ——— PŘIDAT ——— */
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .field-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+  input[type=text] {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border2); border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 14px; background: var(--bg); color: var(--text);
+    outline: none; transition: border-color 0.15s;
+  }
+  input[type=text]:focus { border-color: var(--accent); }
+  .add-btn {
+    width: 100%; padding: 10px; margin-top: 4px; border: 1px solid var(--border2); border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 13px; cursor: pointer; background: var(--accent);
+    color: #fff; letter-spacing: 0.03em; transition: opacity 0.15s;
+  }
+  .add-btn:hover { opacity: 0.85; }
+
+  .word-list { margin-top: 1.5rem; }
+  .list-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .list-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .list-count { font-size: 11px; color: var(--muted); }
+
+  .word-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 6px; gap: 12px;
+  }
+  .word-pair { font-size: 14px; flex: 1; }
+  .word-pair .en { color: var(--text); }
+  .word-pair .sep { color: var(--muted); margin: 0 6px; }
+  .word-pair .cs { color: var(--muted); }
+  .word-meta { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .del-btn { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 16px; padding: 0 2px; line-height: 1; }
+  .del-btn:hover { color: var(--danger); }
+
+  .level-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .l0 { background: #ccc; }
+  .l1 { background: #E24B4A; }
+  .l2 { background: #EF9F27; }
+  .l3 { background: #97C459; }
+  .l4 { background: #1D9E75; }
+
+  /* ——— KVÍZ ——— */
+  .quiz-empty { text-align: center; padding: 2rem 1rem; color: var(--muted); font-size: 14px; line-height: 1.7; }
+  .quiz-word-card {
+    text-align: center; padding: 0.6rem 1rem;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    margin-bottom: 0.5rem; flex-shrink: 0;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .quiz-word-card.flash-correct { animation: flashCorrect 0.5s ease-out; }
+  .quiz-word-card.flash-wrong { animation: flashWrong 0.5s ease-out; }
+  @keyframes flashCorrect {
+    0% { background: #EAF3DE; border-color: #2D5A27; }
+    100% { background: var(--surface); border-color: var(--border); }
+  }
+  @keyframes flashWrong {
+    0% { background: #FCEBEB; border-color: #8B2020; }
+    100% { background: var(--surface); border-color: var(--border); }
+  }
+  .quiz-direction { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 14px; }
+  .quiz-word { font-family: var(--font-serif); font-size: 30px; color: var(--text); line-height: 1.1; }
+  .quiz-pron { font-size: 12px; color: var(--muted); margin-top: 4px; letter-spacing: 0.03em; }
+  .quiz-hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+  /* Reveal po odpovědi */
+  .quiz-reveal { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); animation: fadeIn 0.25s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .quiz-reveal-emoji { font-size: 28px; margin-bottom: 4px; animation: popIn 0.3s cubic-bezier(0.175,0.885,0.32,1.275); }
+  @keyframes popIn { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .quiz-reveal-en { font-family: var(--font-serif); font-size: 17px; color: var(--text); }
+  .quiz-reveal-pron { font-size: 11px; color: var(--muted); margin-top: 2px; letter-spacing: 0.03em; }
+  .quiz-reveal-cs { font-size: 13px; color: var(--accent); margin-top: 3px; font-weight: 500; }
+
+  /* Progress ring */
+  .progress-ring-wrap { display: flex; justify-content: center; margin-bottom: 0.75rem; }
+  .progress-ring-wrap svg { transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--border); stroke-width: 5; }
+  .ring-fill { fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 0.4s ease; }
+  .ring-label { font-size: 13px; fill: var(--muted); text-anchor: middle; dominant-baseline: middle; transform: rotate(90deg) translateX(50%); }
+  .ring-num { font-size: 18px; font-weight: 500; fill: var(--text); }
+
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 0.5rem; }
+  .opt-btn {
+    padding: 10px 8px; border: 1px solid var(--border2); border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 13px; cursor: pointer; background: var(--surface);
+    color: var(--text); text-align: left; transition: background 0.12s, border-color 0.12s;
+    line-height: 1.3;
+  }
+  .opt-btn:hover:not(:disabled) { background: var(--surface2); }
+  .opt-btn.correct { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+  .opt-btn.wrong { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
+  .opt-btn:disabled { cursor: default; }
+
+  .quiz-feedback { font-size: 12px; text-align: center; min-height: 16px; margin-bottom: 6px; color: var(--muted); }
+  .quiz-feedback.good { color: var(--accent); }
+  .quiz-feedback.bad { color: var(--danger); }
+
+  .next-btn {
+    width: 100%; padding: 12px; border: 1px solid var(--border2); border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 14px; cursor: pointer;
+    background: var(--surface); color: var(--text); letter-spacing: 0.02em;
+    transition: background 0.12s; display: none; margin-top: 6px;
+  }
+  .next-btn:hover { background: var(--surface2); }
+
+  /* Progress row */
+  .quiz-progress { display: flex; align-items: center; margin-bottom: 0.6rem; }
+
+  /* Mnemonic box compact */
+  .mnemonic-box { margin-top: 6px; padding: 8px 12px; background: var(--warn-light); border: 1px solid #EF9F27; border-radius: var(--radius); font-size: 12px; color: var(--warn); line-height: 1.5; display: none; }
+  .mnemonic-box.visible { display: block; }
+  .mnemonic-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #EF9F27; margin-bottom: 3px; }
+  .mnemonic-text { color: var(--text); }
+
+  /* Result */
+  .result-card { text-align: center; padding: 2.5rem 1.5rem; }
+  .result-score { font-family: var(--font-serif); font-size: 56px; color: var(--text); }
+  .result-label { font-size: 12px; color: var(--muted); margin-top: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .result-breakdown { margin: 1.5rem 0; display: flex; justify-content: center; gap: 2rem; }
+  .rb-item { text-align: center; }
+  .rb-num { font-size: 22px; font-weight: 500; }
+  .rb-lbl { font-size: 11px; color: var(--muted); }
+  .rb-good .rb-num { color: var(--accent); }
+  .rb-bad .rb-num { color: var(--danger); }
+  .restart-btn {
+    padding: 10px 28px; border: 1px solid var(--border2); border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 13px; cursor: pointer; background: transparent;
+    color: var(--text); letter-spacing: 0.02em; transition: background 0.12s;
+  }
+  .restart-btn:hover { background: var(--surface2); }
+
+  /* ——— PŘEHLED ——— */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1.5rem; }
+  .stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; text-align: center; }
+  .stat-num { font-size: 24px; font-weight: 500; color: var(--text); }
+  .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 1rem; }
+  .legend-item { display: flex; align-items: center; font-size: 12px; color: var(--muted); }
+
+  .overview-list .word-row { cursor: default; }
+  .mastery-bar-wrap { width: 60px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .mastery-bar { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+  .empty-note { font-size: 13px; color: var(--muted); padding: 2rem 0; text-align: center; line-height: 1.7; }
+
+  /* ——— PSANÝ REŽIM ——— */
+  .mode-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--muted); margin-bottom: 1.25rem;
+    background: var(--surface2); border-radius: 20px; padding: 4px 12px;
+  }
+  .mode-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .mode-badge.mode-type .dot { background: #1D9E75; }
+  .mode-badge.mode-choice .dot { background: #EF9F27; }
+
+  .type-input-wrap { position: relative; margin-bottom: 1rem; }
+  .type-input {
+    width: 100%; padding: 14px 16px; border: 1px solid var(--border2); border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 18px; background: var(--bg); color: var(--text);
+    outline: none; transition: border-color 0.15s; text-align: center; letter-spacing: 0.02em;
+  }
+  .type-input:focus { border-color: var(--accent); }
+  .type-input.state-correct { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+  .type-input.state-wrong { border-color: var(--danger); background: var(--danger-light); color: var(--danger); }
+  .type-input.state-close { border-color: #EF9F27; background: var(--warn-light); color: var(--warn); }
+
+  .check-btn {
+    width: 100%; padding: 11px; border: 1px solid var(--border2); border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 13px; cursor: pointer; background: var(--accent);
+    color: #fff; letter-spacing: 0.03em; transition: opacity 0.15s; margin-bottom: 8px;
+  }
+  .check-btn:hover { opacity: 0.85; }
+  .check-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .hint-btn {
+    width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 12px; cursor: pointer; background: transparent;
+    color: var(--muted); letter-spacing: 0.02em; transition: background 0.12s; margin-bottom: 8px;
+  }
+  .hint-btn:hover { background: var(--surface2); }
+
+  .type-hint-chars { font-size: 13px; color: var(--muted); text-align: center; margin-bottom: 8px; letter-spacing: 0.08em; }
+  .diff-display { font-size: 15px; text-align: center; margin-bottom: 6px; }
+  .diff-ok { color: var(--accent); }
+  .diff-bad { color: var(--danger); text-decoration: underline; }
+
+  /* ——— TOP 500 ——— */
+  .top500-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 14px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 5px; cursor: pointer; transition: background 0.1s;
+  }
+  .top500-item:hover { background: var(--surface2); }
+  .top500-item.already { opacity: 0.4; cursor: default; }
+  .top500-check { width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid var(--border2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.15s; }
+  .top500-item.selected .top500-check { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .top500-item.already .top500-check { background: var(--surface2); border-color: var(--border); color: var(--muted); }
+  .top500-en { font-size: 14px; color: var(--text); flex: 1; }
+  .top500-cs { font-size: 13px; color: var(--muted); }
+  .top500-add-btn {
+    position: sticky; bottom: calc(env(safe-area-inset-bottom,0px) + 12px);
+    width: 100%; padding: 13px; margin-top: 10px;
+    background: var(--accent); color: #fff; border: none; border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 14px; cursor: pointer;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.1); display: none;
+  }
+
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="logo">moje <em>slovíčka</em></div>
+    <div class="subtitle">spaced repetition · en ↔ cs</div>
+  </header>
+
+  <nav class="nav">
+    <button class="nav-btn active" onclick="switchTab('quiz-choice')">výběr</button>
+    <button class="nav-btn" onclick="switchTab('quiz-type')">psaní</button>
+    <button class="nav-btn" onclick="switchTab('add')">+ přidat</button>
+    <button class="nav-btn" onclick="switchTab('overview')">přehled</button>
+    <button class="nav-btn" onclick="switchTab('top500')">top 500</button>
+  </nav>
+
+  <!-- KVÍZ výběr -->
+  <div id="screen-quiz-choice" class="screen active">
+    <div id="quiz-root-choice"></div>
+  </div>
+
+  <!-- KVÍZ psaní -->
+  <div id="screen-quiz-type" class="screen">
+    <div id="quiz-root-type"></div>
+  </div>
+
+  <!-- PŘIDAT -->
+  <div id="screen-add" class="screen">
+    <div class="card">
+      <div class="field-label" style="margin-bottom:8px">hromadný import — vlož seznam</div>
+      <textarea id="bulk-input" placeholder="Look forward to	Těšit se na
+Invent	Vymyslet
+Reasons	Důvody" rows="6" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-family:var(--font-mono);font-size:13px;background:var(--bg);color:var(--text);outline:none;resize:vertical;line-height:1.6;transition:border-color 0.15s"></textarea>
+      <div id="bulk-msg" style="font-size:12px;color:var(--muted);min-height:18px;margin-top:6px"></div>
+      <button class="add-btn" onclick="bulkImport()" style="margin-top:6px">importovat</button>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="field-label" style="margin-bottom:8px">nebo přidej jedno slovíčko</div>
+      <div class="field-row">
+        <div>
+          <div class="field-label">anglicky</div>
+          <input type="text" id="in-en" placeholder="např. threshold" />
+        </div>
+        <div>
+          <div class="field-label">česky</div>
+          <input type="text" id="in-cs" placeholder="např. práh" />
+        </div>
+      </div>
+      <button class="add-btn" onclick="addWord()" style="background:transparent;color:var(--text);border:1px solid var(--border2)">přidat</button>
+    </div>
+
+    <div class="word-list">
+      <div class="list-header">
+        <span class="list-title">uložená slovíčka</span>
+        <span class="list-count" id="add-count">0 slov</span>
+      </div>
+      <div id="add-list"></div>
+    </div>
+  </div>
+
+  <!-- TOP 500 -->
+  <div id="screen-top500" class="screen">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">500 nejpoužívanějších slov</div>
+      <div id="top500-added-count" style="font-size:11px;color:var(--muted)"></div>
+    </div>
+    <input type="text" id="top500-search" placeholder="hledat…" oninput="renderTop500()" style="margin-bottom:1rem" />
+    <div id="top500-list"></div>
+    <button class="top500-add-btn" id="top500-add-btn" onclick="addTop500Selected()">přidat vybraná slovíčka</button>
+  </div>
+
+  <!-- PŘEHLED -->
+  <div id="screen-overview" class="screen">
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-num" id="ov-total">0</div><div class="stat-lbl">celkem</div></div>
+      <div class="stat-box"><div class="stat-num" id="ov-learned">0</div><div class="stat-lbl">naučeno</div></div>
+      <div class="stat-box"><div class="stat-num" id="ov-streak">0</div><div class="stat-lbl">serie dnes</div></div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="level-dot l1"></span>nové</div>
+      <div class="legend-item"><span class="level-dot l2"></span>učím se</div>
+      <div class="legend-item"><span class="level-dot l3"></span>dobré</div>
+      <div class="legend-item"><span class="level-dot l4"></span>naučeno</div>
+    </div>
+    <div id="ov-list" class="overview-list"></div>
+  </div>
+</div>
+
+<script>
+// ——— DATA ———
+const STORAGE_KEY = 'slovicka_v2';
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { return []; }
+}
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
+}
+
+// word schema:
+// { id, en, cs, added, history: [{ts, correct}], interval, easeFactor, nextReview }
+let words = load();
+let todayCorrect = 0;
+
+function newWord(en, cs) {
+  return { id: Date.now(), en, cs, added: Date.now(), history: [], interval: 0, easeFactor: 2.5, nextReview: 0 };
+}
+
+// ——— SPACED REPETITION (SM-2 inspired) ———
+// quality: 0 = wrong, 1 = correct
+function updateSR(word, quality) {
+  word.history.push({ ts: Date.now(), correct: quality === 1 });
+  if (quality === 0) {
+    word.interval = 1;
+    word.easeFactor = Math.max(1.3, word.easeFactor - 0.2);
+  } else {
+    if (word.interval === 0) word.interval = 1;
+    else if (word.interval === 1) word.interval = 3;
+    else word.interval = Math.round(word.interval * word.easeFactor);
+    word.easeFactor = Math.min(3.0, word.easeFactor + 0.1);
+  }
+  word.nextReview = Date.now() + word.interval * 24 * 60 * 60 * 1000;
+  save();
+}
+
+function getMasteryLevel(word) {
+  if (word.history.length === 0) return 0;
+  const last5 = word.history.slice(-5).map(h => h.correct ? 1 : 0);
+  const avg = last5.reduce((a,b)=>a+b,0) / last5.length;
+  if (avg >= 0.9 && word.interval >= 14) return 4;
+  if (avg >= 0.7 && word.interval >= 4) return 3;
+  if (avg >= 0.4 || word.history.length >= 2) return 2;
+  return 1;
+}
+
+function getMasteryPct(word) {
+  if (word.history.length === 0) return 0;
+  const last10 = word.history.slice(-10);
+  return Math.round(last10.filter(h=>h.correct).length / last10.length * 100);
+}
+
+// Pick words due for review, weighted by urgency
+function pickQuizWords(n = 10) {
+  if (words.length === 0) return [];
+  const now = Date.now();
+
+  // Score each word: lower score = higher priority
+  const scored = words.map(w => {
+    const overdue = (now - w.nextReview) / (24*60*60*1000); // days overdue (neg = future)
+    const mastery = getMasteryLevel(w);
+    // New words (never tested) get priority
+    if (w.history.length === 0) return { w, score: -999 + Math.random() * 10 };
+    // Overdue words: more overdue = higher priority (lower score)
+    const score = -overdue + mastery * 0.5 + Math.random() * 0.3;
+    return { w, score };
+  });
+
+  scored.sort((a,b) => a.score - b.score);
+  return scored.slice(0, Math.min(n, words.length)).map(s => s.w);
+}
+
+// ——— QUIZ STATE ———
+let qState = null;
+
+function correctCount(word) {
+  return word.history.filter(h => h.correct).length;
+}
+
+function startQuizChoice() {
+  const pool = pickQuizWords(10);
+  const root = document.getElementById('quiz-root-choice');
+  if (pool.length === 0) { root.innerHTML = '<div class="quiz-empty">Zatím nemáš žádná slovíčka.<br>Přidej první v záložce <strong>+ přidat</strong>.</div>'; return; }
+  // Alternate directions: first half EN→CS, second half CS→EN
+  const questions = pool.map((w, i) => buildChoiceQuestion(w, i % 2 === 0 ? 'en-cs' : 'cs-en'));
+  qState = { mode: 'choice', questions, idx: 0, correct: 0, answered: false, wrongWords: [], isRetry: false };
+  renderChoiceQuestion();
+}
+
+function startQuizType() {
+  const eligible = words.filter(w => correctCount(w) >= 5);
+  const root = document.getElementById('quiz-root-type');
+  if (eligible.length === 0) {
+    root.innerHTML = '<div class="quiz-empty">Zatím nemáš žádná slovíčka se 5+ správnými odpověďmi.<br>Procvičuj nejdřív v záložce <strong>výběr</strong>.</div>';
+    return;
+  }
+  const shuffle = arr => arr.sort(() => Math.random() - 0.5);
+  const pool = shuffle(eligible).slice(0, 10);
+  const questions = pool.map((w, i) => buildTypeQuestion(w, i % 2 === 0 ? 'en-cs' : 'cs-en'));
+  qState = { mode: 'type', questions, idx: 0, correct: 0, answered: false, wrongWords: [], isRetry: false };
+  renderTypeQuestion();
+}
+
+function buildChoiceQuestion(word, dir) {
+  if (!dir) dir = Math.random() < 0.5 ? 'en-cs' : 'cs-en';
+  const q = dir === 'en-cs' ? word.en : word.cs;
+  const ans = dir === 'en-cs' ? word.cs : word.en;
+  const shuffle = arr => arr.sort(() => Math.random() - 0.5);
+  const others = words.filter(w => w.id !== word.id);
+  const distractors = shuffle(others).slice(0, 3).map(w => dir === 'en-cs' ? w.cs : w.en);
+  while (distractors.length < 3) distractors.push('—');
+  return { word, dir, q, ans, options: shuffle([ans, ...distractors]) };
+}
+
+function buildTypeQuestion(word, dir) {
+  if (!dir) dir = Math.random() < 0.5 ? 'en-cs' : 'cs-en';
+  const q = dir === 'en-cs' ? word.en : word.cs;
+  const ans = dir === 'en-cs' ? word.cs : word.en;
+  return { word, dir, q, ans };
+}
+
+function quizProgressBar(idx, total) {
+  const pct = Math.round((idx / total) * 100);
+  return `<div class="quiz-progress">
+    <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+      <div style="width:${pct}%;height:100%;background:var(--accent);border-radius:2px;transition:width 0.3s"></div>
+    </div>
+    <span style="font-size:11px;color:var(--muted);margin-left:10px;white-space:nowrap">${idx+1} / ${total}</span>
+  </div>`;
+}
+
+const EMOJIS = {
+  'look forward to': '🤩',
+  'invent': '💡',
+  'reasons': '🤔',
+  'tan': '☀️',
+  'interviewed': '🎤',
+  'increasingly': '📈',
+  'jealous': '😒',
+  'steep': '⛰️',
+  'needs': '🛒',
+  'below': '⬇️',
+  'kind': '🗂️',
+  'excited': '🎉',
+  'frightened': '😱',
+  'find': '🔍',
+  'tiles': '🟦',
+  'tiler': '🧱',
+  'flavour': '😋',
+  'by sight': '👁️',
+  'addiction': '🔗',
+  'addicted to': '😵',
+  'feel like eating': '🍕',
+  'furniture': '🛋️',
+  'necessary': '✅',
+  'measure': '📏',
+  'remaining': '⏳',
+  'count': '🔢',
+  'partial': '🌗',
+  'last': '🏁',
+  'after': '➡️',
+  'behind': '👀',
+  'yesterday': '📅',
+  'previous day': '⬅️',
+  'last time': '🔄',
+  'another': '➕',
+};
+
+function flashCard(type) {
+  const card = document.querySelector('.quiz-word-card');
+  if (!card) return;
+  card.classList.remove('flash-correct', 'flash-wrong');
+  void card.offsetWidth; // reflow pro restart animace
+  card.classList.add(type === 'correct' ? 'flash-correct' : 'flash-wrong');
+}
+
+function revealTranslation(q, correct) {
+  const card = document.querySelector('.quiz-word-card');
+  if (!card || card.querySelector('.quiz-reveal')) return;
+  const pron = PRONUNCIATIONS[q.word.en.toLowerCase()] || '';
+  const emoji = correct ? (EMOJIS[q.word.en.toLowerCase()] || '') : '';
+  const div = document.createElement('div');
+  div.className = 'quiz-reveal';
+  div.innerHTML = `
+    ${emoji ? `<div class="quiz-reveal-emoji">${emoji}</div>` : ''}
+    <div class="quiz-reveal-en">${q.word.en}</div>
+    ${pron ? `<div class="quiz-reveal-pron">${pron}</div>` : ''}
+    <div class="quiz-reveal-cs">${q.word.cs}</div>
+  `;
+  card.appendChild(div);
+}
+
+function quizWordCard(q) {
+  const mastery = getMasteryLevel(q.word);
+  const masteryColors = ['#ccc','#E24B4A','#EF9F27','#97C459','#1D9E75'];
+  const masteryLabels = ['nové','znám málo','učím se','dobré','naučeno'];
+  const pron = q.dir === 'en-cs' ? (PRONUNCIATIONS[q.word.en.toLowerCase()] || '') : '';
+  return `<div class="quiz-word-card">
+    <div class="quiz-word">${q.q}</div>
+    ${pron ? `<div class="quiz-pron">${pron}</div>` : ''}
+    <div class="quiz-hint"><span class="level-dot" style="background:${masteryColors[mastery]}"></span>${masteryLabels[mastery]}</div>
+  </div>`;
+}
+
+// ——— VÝBĚR ———
+function renderChoiceQuestion() {
+  const root = document.getElementById('quiz-root-choice');
+  const { questions, idx } = qState;
+  if (idx >= questions.length) { renderResult('choice'); return; }
+  const q = questions[idx];
+  root.innerHTML = quizProgressBar(idx, questions.length) + quizWordCard(q) + `
+    <div class="options">
+      ${q.options.map(o => `<button class="opt-btn" onclick="pickOpt(this,'${esc(o)}')">${o}</button>`).join('')}
+    </div>
+    <div class="quiz-feedback" id="qfb"></div>
+    <div class="mnemonic-box" id="mnemonic-box"><div class="mnemonic-label">pomůcka pro zapamatování</div><div class="mnemonic-text" id="mnemonic-text"></div></div>
+    <button class="next-btn" id="qnext" onclick="nextChoiceQ()">další →</button>`;
+  qState.answered = false;
+}
+
+const PRONUNCIATIONS = {
+  'look forward to': 'luk fór-wrd tu',
+  'invent': 'in-VENT',
+  'reasons': 'RÍ-znz',
+  'tan': 'tan',
+  'interviewed': 'IN-tr-vjúd',
+  'increasingly': 'in-KRÍS-ing-li',
+  'jealous': 'DŽEL-əs',
+  'steep': 'stíp',
+  'needs': 'níds',
+  'below': 'bi-LOU',
+  'kind': 'kajnd',
+  'excited': 'ik-SAJ-tid',
+  'frightened': 'FRAJ-tnd',
+  'find': 'fajnd',
+  'tiles': 'tajlz',
+  'tiler': 'TAJ-lr',
+  'flavour': 'FLEJ-vr',
+  'by sight': 'baj sajt',
+  'addiction': 'ə-DIK-šn',
+  'addicted to': 'ə-DIK-tid tu',
+  'feel like eating': 'fíl lajk ít-ing',
+  'furniture': 'FÖR-ni-čr',
+  'necessary': 'NES-ə-seri',
+  'measure': 'ME-žr',
+  'remaining': 'ri-MEJ-ning',
+  'count': 'kaunt',
+  'partial': 'PÁR-šl',
+  'last': 'lást',
+  'after': 'ÁF-tr',
+  'behind': 'bi-HAJND',
+  'yesterday': 'JES-tə-dej',
+  'previous day': 'PRÍ-viəs dej',
+  'last time': 'lást tajm',
+  'another': 'ə-NAD-ər',
+};
+
+const MNEMONICS = {
+  'look forward to': 'Představ si jak se díváš (look) dopředu (forward) na něco těšeného — třeba na dovolenou.',
+  'invent': 'Invent zní jako „invent" — přišel s nápadem ve větracím otvoru, tedy vymyslel něco nového.',
+  'reasons': 'Reasons = důvody. „For these reasons" — z těchto důvodů, slyšíš to v každém projevu.',
+  'tan': 'Tan = opálení. Tanin v čaji barví zuby do hněda — stejně jako slunce opálí kůži.',
+  'interviewed': 'Interview = rozhovor, inter = mezi, view = pohled. Dotazovaný je ten, na koho se dívají.',
+  'increasingly': 'Increase = zvyšovat, increasingly = čím dál více. Každý den increasingly víc slovíček!',
+  'jealous': 'Jealous = žárlivý. Zní trochu jako „žalous" — žaloba z žárlivosti.',
+  'steep': 'Steep svah si představ jako strmé schody — každý schod je prudký výstup.',
+  'needs': 'Need = potřeba, needs = potřeby. „He needs food" — on potřebuje jídlo.',
+  'below': 'Below = níže, pod. „Be low" — buď dole. Opak je above = nahoře.',
+  'kind': 'Kind má dva významy: druh/typ, ale i laskavý. „What kind?" = jakého druhu?',
+  'excited': 'Excited = nadšený. Exit + ed — vyšel ven nadšením, nemohl se udržet.',
+  'frightened': 'Frightened = vyděšený. Fright = strach. „What a fright!" — to byl strach!',
+  'find': 'Find v češtině může znamenat i „považovat" — „I find it useful" = považuji to za užitečné.',
+  'tiles': 'Tiles = kachličky. Tile = dlaždice. Tiled bathroom = obložená koupelna.',
+  'tiler': 'Tiler = obkladač. Ten kdo pokládá tiles (kachličky). Tile → tiler jako build → builder.',
+  'flavour': 'Flavour = příchuť (britský pravopis, Američané píší flavor). „What flavour?" = jaká příchuť?',
+  'by sight': 'By sight = od pohledu. „I know him by sight" = znám ho od vidění, od pohledu.',
+  'addiction': 'Addiction = závislost. Addict = závislák. „Sugar addiction" = závislost na cukru.',
+  'addicted to': 'Addicted to = závislý na. „Addicted to coffee" — závislý na kávě. To znáš!',
+  'feel like eating': 'Feel like = mít chuť na něco. „I feel like eating pizza" = mám chuť na pizzu.',
+  'furniture': 'Furniture = nábytek. Furnish = zařídit. „Furnished apartment" = zařízený byt.',
+  'necessary': 'Necessary = nutné. „Is it necessary?" = Je to nutné? Jedno c, dvě s — „one Collar, two Socks".',
+  'measure': 'Measure = měřit/míra. „Me-žr" — představ si metr jak měříš místnost.',
+  'remaining': 'Remaining = zbývající. Remain = zůstat. „What remains?" = Co zbývá?',
+  'count': 'Count = počítat/hrabě. „Count Dracula counts his victims" — hrabě Drákula počítá oběti.',
+  'partial': 'Partial = částečný. Part = část. Partial eclipse = částečné zatmění.',
+  'last': 'Last = poslední, ale i trvat. „The last show lasts 2 hours" = poslední show trvá 2 hodiny.',
+  'after': 'After = po, poté. „After school" = po škole. Opak je before = před.',
+  'behind': 'Behind = za, pozadu. „Be + hind" — buď vzadu jako zadní část jelena (hind).',
+  'yesterday': 'Yesterday = včera. Znáš píseň od Beatles „Yesterday"? Tu zpívali o včerejšku.',
+  'previous day': 'Previous = předchozí. Pre = před. „Previous day" = den před dneškem.',
+  'last time': 'Last time = minule, naposledy. „Last time I saw you" = minule když jsem tě viděl.',
+  'another': 'Another = další/jiný. An + other = jeden jiný. „Another one!" = ještě jeden!',
+};
+
+function fetchMnemonic(en, cs) {
+  const box = document.getElementById('mnemonic-box');
+  const txt = document.getElementById('mnemonic-text');
+  if (!box || !txt) return;
+  const key = en.toLowerCase().trim();
+  const hint = MNEMONICS[key];
+  if (hint) {
+    txt.className = 'mnemonic-text';
+    txt.textContent = hint;
+    box.classList.add('visible');
+  } else {
+    // Jednoduchá offline pomůcka pro neznámá slovíčka
+    txt.className = 'mnemonic-text';
+    txt.textContent = `„${en}" → „${cs}" — zkus si to napsat 3× a použít ve větě.`;
+    box.classList.add('visible');
+  }
+}
+
+function pickOpt(btn, val) {
+  if (qState.answered) return;
+  qState.answered = true;
+  const q = qState.questions[qState.idx];
+
+  document.querySelectorAll('.opt-btn').forEach(b => {
+    b.disabled = true;
+    const optText = b.childNodes[0].textContent.trim().toLowerCase();
+    if (b.textContent.trim() === q.ans) b.classList.add('correct');
+
+    if (q.dir === 'cs-en') {
+      // Dlaždice jsou anglicky → přidej český překlad + výslovnost
+      const match = words.find(w => w.en.toLowerCase() === optText);
+      const pron = PRONUNCIATIONS[optText] || '';
+      if (pron) {
+        const pd = document.createElement('div');
+        pd.style.cssText = 'font-size:10px;opacity:0.65;margin-top:2px;letter-spacing:0.02em;';
+        pd.textContent = pron;
+        b.appendChild(pd);
+      }
+      if (match) {
+        const td = document.createElement('div');
+        td.style.cssText = 'font-size:11px;margin-top:3px;opacity:0.8;';
+        td.textContent = match.cs;
+        b.appendChild(td);
+      }
+    } else {
+      // Dlaždice jsou česky → přidej anglický originál + výslovnost
+      const match = words.find(w => w.cs.toLowerCase() === optText);
+      if (match) {
+        const pron = PRONUNCIATIONS[match.en.toLowerCase()] || '';
+        const td = document.createElement('div');
+        td.style.cssText = 'font-size:11px;margin-top:3px;opacity:0.8;font-style:italic;';
+        td.textContent = match.en + (pron ? ` · ${pron}` : '');
+        b.appendChild(td);
+      }
+    }
+  });
+
+  const correct = val === q.ans;
+  if (correct) { btn.classList.add('correct'); qState.correct++; todayCorrect++; document.getElementById('qfb').textContent = 'správně!'; document.getElementById('qfb').className = 'quiz-feedback good'; flashCard('correct'); }
+  else {
+    btn.classList.add('wrong');
+    document.getElementById('qfb').textContent = `správně: ${q.ans}`;
+    document.getElementById('qfb').className = 'quiz-feedback bad';
+    flashCard('wrong');
+    if (!qState.wrongWords.find(w => w.id === q.word.id)) qState.wrongWords.push(q.word);
+  }
+  updateSR(q.word, correct ? 1 : 0);
+  revealTranslation(q, correct);
+  fetchMnemonic(q.word.en, q.word.cs);
+  document.getElementById('qnext').style.display = 'block';
+}
+
+function nextChoiceQ() { qState.idx++; renderChoiceQuestion(); }
+
+// ——— PSANÍ ———
+function renderTypeQuestion() {
+  const root = document.getElementById('quiz-root-type');
+  const { questions, idx } = qState;
+  if (idx >= questions.length) { renderResult('type'); return; }
+  const q = questions[idx];
+  root.innerHTML = quizProgressBar(idx, questions.length) + quizWordCard(q) + `
+    <div class="type-input-wrap">
+      <input class="type-input" id="type-in" type="text" placeholder="napiš překlad…" autocomplete="off" autocorrect="off" spellcheck="false" />
+    </div>
+    <div class="type-hint-chars" id="type-hint-chars"></div>
+    <div class="diff-display" id="diff-display"></div>
+    <div class="quiz-feedback" id="qfb"></div>
+    <div class="mnemonic-box" id="mnemonic-box"><div class="mnemonic-label">pomůcka pro zapamatování</div><div class="mnemonic-text" id="mnemonic-text"></div></div>
+    <button class="check-btn" id="check-btn" onclick="checkTyped()">zkontrolovat</button>
+    <button class="hint-btn" id="hint-btn" onclick="showTypeHint()">nápověda (první písmeno)</button>
+    <button class="next-btn" id="qnext" onclick="nextTypeQ()">další →</button>`;
+  const inp = document.getElementById('type-in');
+  inp.focus();
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { if (!qState.answered) checkTyped(); else nextTypeQ(); } });
+  qState.answered = false;
+  qState.hintShown = false;
+}
+
+function nextTypeQ() { qState.idx++; renderTypeQuestion(); }
+
+function esc(s) { return s.replace(/'/g,"&#39;").replace(/"/g,'&quot;'); }
+
+function showTypeHint() {
+  const q = qState.questions[qState.idx];
+  if (qState.hintShown) return;
+  qState.hintShown = true;
+  const hint = q.ans.split('').map((c, i) => i === 0 ? c : (c === ' ' ? ' ' : '_')).join('');
+  document.getElementById('type-hint-chars').textContent = hint;
+  document.getElementById('hint-btn').disabled = true;
+}
+
+function normalize(s) {
+  return s.trim().toLowerCase()
+    .replace(/á/g,'a').replace(/č/g,'c').replace(/ď/g,'d').replace(/é/g,'e')
+    .replace(/ě/g,'e').replace(/í/g,'i').replace(/ň/g,'n').replace(/ó/g,'o')
+    .replace(/ř/g,'r').replace(/š/g,'s').replace(/ť/g,'t').replace(/ú/g,'u')
+    .replace(/ů/g,'u').replace(/ý/g,'y').replace(/ž/g,'z');
+}
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, (_,i) => Array.from({length: n+1}, (_,j) => j === 0 ? i : (i === 0 ? j : 0)));
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+    dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function diffHtml(typed, correct) {
+  let html = '';
+  const len = Math.max(typed.length, correct.length);
+  for (let i = 0; i < len; i++) {
+    const tc = typed[i] || '';
+    const cc = correct[i] || '';
+    if (tc === cc) html += `<span class="diff-ok">${cc}</span>`;
+    else if (cc) html += `<span class="diff-bad">${cc}</span>`;
+  }
+  return html;
+}
+
+function checkTyped() {
+  if (qState.answered) return;
+  const q = qState.questions[qState.idx];
+  const inp = document.getElementById('type-in');
+  const typed = inp.value.trim();
+  if (!typed) return;
+  qState.answered = true;
+  inp.disabled = true;
+  document.getElementById('check-btn').disabled = true;
+  const hintBtn = document.getElementById('hint-btn');
+  if (hintBtn) hintBtn.disabled = true;
+
+  const typedN = normalize(typed);
+  const ansN = normalize(q.ans);
+  const exact = typedN === ansN;
+  const dist = levenshtein(typedN, ansN);
+  const close = !exact && dist <= Math.max(1, Math.floor(q.ans.length * 0.2));
+
+  const fb = document.getElementById('qfb');
+  const diff = document.getElementById('diff-display');
+
+  if (exact) {
+    inp.className = 'type-input state-correct';
+    fb.textContent = 'správně!';
+    fb.className = 'quiz-feedback good';
+    qState.correct++;
+    todayCorrect++;
+    updateSR(q.word, 1);
+    flashCard('correct');
+  } else if (close) {
+    inp.className = 'type-input state-close';
+    fb.textContent = `skoro — správně: ${q.ans}`;
+    fb.className = 'quiz-feedback';
+    diff.innerHTML = diffHtml(typed.toLowerCase(), q.ans.toLowerCase());
+    updateSR(q.word, 1);
+    qState.correct++;
+    todayCorrect++;
+    flashCard('correct');
+  } else {
+    inp.className = 'type-input state-wrong';
+    fb.textContent = `špatně — správně: ${q.ans}`;
+    fb.className = 'quiz-feedback bad';
+    diff.innerHTML = diffHtml(typed.toLowerCase(), q.ans.toLowerCase());
+    updateSR(q.word, 0);
+    flashCard('wrong');
+    if (!qState.wrongWords.find(w => w.id === q.word.id)) qState.wrongWords.push(q.word);
+  }
+  revealTranslation(q, exact || close);
+  fetchMnemonic(q.word.en, q.word.cs);
+  document.getElementById('qnext').style.display = 'block';
+}
+
+function renderResult(mode) {
+  const { correct, questions, wrongWords, isRetry } = qState;
+  const total = questions.length;
+  const pct = Math.round(correct / total * 100);
+  const rootId = mode === 'type' ? 'quiz-root-type' : 'quiz-root-choice';
+  const restartFn = mode === 'type' ? 'startQuizType()' : 'startQuizChoice()';
+
+  // Wrong words stats sorted by error count
+  const wrongList = wrongWords.length > 0 ? `
+    <div style="margin-top:1.5rem;text-align:left">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">chybná slovíčka</div>
+      ${wrongWords.map(w => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px">
+          <span>${w.en}</span>
+          <span style="color:var(--muted)">→</span>
+          <span style="color:var(--danger)">${w.cs}</span>
+        </div>`).join('')}
+    </div>
+    ${!isRetry ? `<button class="restart-btn" style="margin-top:1rem;width:100%;background:var(--danger-light);border-color:var(--danger);color:var(--danger)" onclick="retryWrong('${mode}')">opakovat chybná (${wrongWords.length}×)</button>` : ''}
+  ` : '<div style="margin-top:1rem;font-size:13px;color:var(--accent)">Výborně, žádné chyby! 🎉</div>';
+
+  document.getElementById(rootId).innerHTML = `
+    <div class="card result-card">
+      <div class="result-score">${pct}%</div>
+      <div class="result-label">${isRetry ? 'opakování hotovo' : 'úspěšnost'}</div>
+      <div class="result-breakdown">
+        <div class="rb-item rb-good"><div class="rb-num">${correct}</div><div class="rb-lbl">správně</div></div>
+        <div class="rb-item rb-bad"><div class="rb-num">${total - correct}</div><div class="rb-lbl">špatně</div></div>
+      </div>
+      ${wrongList}
+      <button class="restart-btn" style="margin-top:1rem;width:100%" onclick="${restartFn}">nový kvíz</button>
+    </div>`;
+}
+
+function retryWrong(mode) {
+  const wrongWords = qState.wrongWords;
+  const rootId = mode === 'type' ? 'quiz-root-type' : 'quiz-root-choice';
+  if (!wrongWords.length) return;
+  // Flip direction for retry — show the other side
+  if (mode === 'choice') {
+    const questions = wrongWords.map(w => buildChoiceQuestion(w, 'cs-en'));
+    qState = { mode: 'choice', questions, idx: 0, correct: 0, answered: false, wrongWords: [], isRetry: true };
+    renderChoiceQuestion();
+  } else {
+    const questions = wrongWords.map(w => buildTypeQuestion(w, 'cs-en'));
+    qState = { mode: 'type', questions, idx: 0, correct: 0, answered: false, wrongWords: [], isRetry: true };
+    renderTypeQuestion();
+  }
+}
+
+// ——— PŘIDAT ———
+function bulkImport() {
+  const raw = document.getElementById('bulk-input').value;
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  let added = 0, skipped = 0;
+  lines.forEach(line => {
+    // Split on tab, or multiple spaces, or common separators
+    const parts = line.split(/\t|  +| – | - /).map(p => p.trim()).filter(p => p);
+    if (parts.length < 2) { skipped++; return; }
+    const en = parts[0].toLowerCase();
+    const cs = parts.slice(1).join(' ').toLowerCase();
+    if (!en || !cs) { skipped++; return; }
+    if (words.find(w => w.en === en)) { skipped++; return; }
+    words.push(newWord(en, cs));
+    added++;
+  });
+  save();
+  const msg = document.getElementById('bulk-msg');
+  if (added > 0) {
+    msg.style.color = 'var(--accent)';
+    msg.textContent = `Přidáno ${added} slovíček${skipped > 0 ? `, ${skipped} přeskočeno (duplicity/chyby)` : ''}.`;
+    document.getElementById('bulk-input').value = '';
+  } else {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = skipped > 0 ? `Nic nepřidáno — ${skipped} řádků přeskočeno (duplicity nebo špatný formát).` : 'Nic k importu.';
+  }
+  renderAddList();
+}
+
+function addWord() {
+  const en = document.getElementById('in-en').value.trim().toLowerCase();
+  const cs = document.getElementById('in-cs').value.trim().toLowerCase();
+  if (!en || !cs) return;
+  if (words.find(w => w.en === en)) { alert('Toto slovíčko už máš!'); return; }
+  words.push(newWord(en, cs));
+  save();
+  document.getElementById('in-en').value = '';
+  document.getElementById('in-cs').value = '';
+  document.getElementById('in-en').focus();
+  renderAddList();
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('screen-add').classList.contains('active')) addWord();
+});
+
+function renderAddList() {
+  const list = document.getElementById('add-list');
+  document.getElementById('add-count').textContent = words.length + ' slov';
+  if (!words.length) { list.innerHTML = '<p class="empty-note">Zatím žádná slovíčka.</p>'; return; }
+  const sorted = [...words].sort((a,b) => b.added - a.added);
+  list.innerHTML = sorted.map(w => {
+    const m = getMasteryLevel(w);
+    const colors = ['#ccc','#E24B4A','#EF9F27','#97C459','#1D9E75'];
+    return `<div class="word-row">
+      <span class="level-dot" style="background:${colors[m]}"></span>
+      <div class="word-pair"><span class="en">${w.en}</span><span class="sep">—</span><span class="cs">${w.cs}</span></div>
+      <span class="word-meta">${w.history.length}×</span>
+      <button class="del-btn" onclick="deleteWord(${w.id})">×</button>
+    </div>`;
+  }).join('');
+}
+
+function deleteWord(id) {
+  words = words.filter(w => w.id !== id);
+  save();
+  renderAddList();
+  renderOverview();
+}
+
+// ——— PŘEHLED ———
+function renderOverview() {
+  const total = words.length;
+  const learned = words.filter(w => getMasteryLevel(w) >= 4).length;
+  document.getElementById('ov-total').textContent = total;
+  document.getElementById('ov-learned').textContent = learned;
+  document.getElementById('ov-streak').textContent = todayCorrect;
+
+  const list = document.getElementById('ov-list');
+  if (!total) { list.innerHTML = '<p class="empty-note">Zatím žádná slovíčka.</p>'; return; }
+
+  const sorted = [...words].sort((a,b) => getMasteryLevel(a) - getMasteryLevel(b));
+  const masteryColors = ['#ccc','#E24B4A','#EF9F27','#97C459','#1D9E75'];
+
+  list.innerHTML = sorted.map(w => {
+    const m = getMasteryLevel(w);
+    const pct = getMasteryPct(w);
+    const now = Date.now();
+    const dueIn = Math.round((w.nextReview - now) / (24*60*60*1000));
+    const dueStr = w.history.length === 0 ? 'nové' : dueIn <= 0 ? 'dnes' : `za ${dueIn}d`;
+    return `<div class="word-row">
+      <span class="level-dot" style="background:${masteryColors[m]}"></span>
+      <div class="word-pair"><span class="en">${w.en}</span><span class="sep">—</span><span class="cs">${w.cs}</span></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="mastery-bar-wrap"><div class="mastery-bar" style="width:${pct}%;background:${masteryColors[m]}"></div></div>
+        <span class="word-meta">${dueStr}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ——— TOP 500 ———
+const TOP500 = [
+  {en:'the',cs:'ten/ta/to'},{en:'be',cs:'být'},{en:'to',cs:'k/do'},{en:'of',cs:'z/od'},{en:'and',cs:'a'},
+  {en:'a',cs:'jeden/nějaký'},{en:'in',cs:'v'},{en:'that',cs:'že/ten'},{en:'have',cs:'mít'},{en:'it',cs:'to'},
+  {en:'for',cs:'pro'},{en:'not',cs:'ne'},{en:'on',cs:'na'},{en:'with',cs:'s'},{en:'he',cs:'on'},
+  {en:'as',cs:'jako'},{en:'you',cs:'ty/vy'},{en:'do',cs:'dělat'},{en:'at',cs:'u/při'},{en:'this',cs:'tento'},
+  {en:'but',cs:'ale'},{en:'his',cs:'jeho'},{en:'by',cs:'podle/od'},{en:'from',cs:'z/od'},{en:'they',cs:'oni'},
+  {en:'we',cs:'my'},{en:'say',cs:'říkat'},{en:'her',cs:'její/ji'},{en:'she',cs:'ona'},{en:'or',cs:'nebo'},
+  {en:'an',cs:'jeden/nějaký'},{en:'will',cs:'bude'},{en:'my',cs:'můj'},{en:'one',cs:'jeden'},{en:'all',cs:'všechno'},
+  {en:'would',cs:'by'},{en:'there',cs:'tam'},{en:'their',cs:'jejich'},{en:'what',cs:'co'},{en:'so',cs:'tak'},
+  {en:'up',cs:'nahoru'},{en:'out',cs:'ven'},{en:'if',cs:'jestli'},{en:'about',cs:'o'},{en:'who',cs:'kdo'},
+  {en:'get',cs:'dostat'},{en:'which',cs:'který'},{en:'go',cs:'jít'},{en:'me',cs:'mě/mi'},{en:'when',cs:'když'},
+  {en:'make',cs:'dělat/udělat'},{en:'can',cs:'moci'},{en:'like',cs:'jako/líbit se'},{en:'time',cs:'čas'},{en:'no',cs:'ne/žádný'},
+  {en:'just',cs:'právě/jen'},{en:'him',cs:'ho/mu'},{en:'know',cs:'vědět/znát'},{en:'take',cs:'vzít'},{en:'people',cs:'lidé'},
+  {en:'into',cs:'do'},{en:'year',cs:'rok'},{en:'your',cs:'tvůj/váš'},{en:'good',cs:'dobrý'},{en:'some',cs:'nějaký'},
+  {en:'could',cs:'mohl by'},{en:'them',cs:'je/jim'},{en:'see',cs:'vidět'},{en:'other',cs:'jiný'},{en:'than',cs:'než'},
+  {en:'then',cs:'pak'},{en:'now',cs:'teď'},{en:'look',cs:'podívat se'},{en:'only',cs:'jen'},{en:'come',cs:'přijít'},
+  {en:'its',cs:'jeho/její'},{en:'over',cs:'přes/nad'},{en:'think',cs:'myslet'},{en:'also',cs:'také'},{en:'back',cs:'zpět/záda'},
+  {en:'after',cs:'po/poté'},{en:'use',cs:'používat'},{en:'two',cs:'dva'},{en:'how',cs:'jak'},{en:'our',cs:'náš'},
+  {en:'work',cs:'práce/pracovat'},{en:'first',cs:'první'},{en:'well',cs:'dobře'},{en:'way',cs:'cesta/způsob'},{en:'even',cs:'dokonce/rovnoměrný'},
+  {en:'new',cs:'nový'},{en:'want',cs:'chtít'},{en:'because',cs:'protože'},{en:'any',cs:'jakýkoli'},{en:'these',cs:'tyto'},
+  {en:'give',cs:'dát'},{en:'day',cs:'den'},{en:'most',cs:'nejvíce'},{en:'us',cs:'nás/nám'},{en:'between',cs:'mezi'},
+  {en:'need',cs:'potřebovat'},{en:'large',cs:'velký'},{en:'often',cs:'často'},{en:'hand',cs:'ruka'},{en:'high',cs:'vysoký'},
+  {en:'place',cs:'místo'},{en:'hold',cs:'držet'},{en:'turn',cs:'otočit/řada'},{en:'help',cs:'pomoci'},{en:'small',cs:'malý'},
+  {en:'number',cs:'číslo'},{en:'off',cs:'pryč/vypnuto'},{en:'always',cs:'vždy'},{en:'move',cs:'pohnout'},{en:'night',cs:'noc'},
+  {en:'live',cs:'žít/živý'},{en:'Mr',cs:'pan'},{en:'point',cs:'bod/ukázat'},{en:'city',cs:'město'},{en:'play',cs:'hrát'},
+  {en:'small',cs:'malý'},{en:'found',cs:'najít/založit'},{en:'study',cs:'studovat'},{en:'still',cs:'stále'},{en:'learn',cs:'učit se'},
+  {en:'plant',cs:'rostlina/závod'},{en:'cover',cs:'zakrýt/obal'},{en:'food',cs:'jídlo'},{en:'sun',cs:'slunce'},{en:'four',cs:'čtyři'},
+  {en:'between',cs:'mezi'},{en:'state',cs:'stát/stav'},{en:'keep',cs:'uchovat'},{en:'eye',cs:'oko'},{en:'never',cs:'nikdy'},
+  {en:'last',cs:'poslední/trvat'},{en:'let',cs:'nechat'},{en:'thought',cs:'myšlenka'},{en:'city',cs:'město'},{en:'tree',cs:'strom'},
+  {en:'cross',cs:'kříž/přejít'},{en:'farm',cs:'farma'},{en:'hard',cs:'těžký'},{en:'start',cs:'začít'},{en:'might',cs:'mohl by'},
+  {en:'story',cs:'příběh'},{en:'saw',cs:'viděl/pila'},{en:'far',cs:'daleko'},{en:'sea',cs:'moře'},{en:'draw',cs:'kreslit'},
+  {en:'left',cs:'levý/odešel'},{en:'late',cs:'pozdní'},{en:'run',cs:'běžet'},{en:'while',cs:'zatímco'},{en:'press',cs:'tisknout/tisk'},
+  {en:'close',cs:'zavřít/blízký'},{en:'night',cs:'noc'},{en:'real',cs:'skutečný'},{en:'life',cs:'život'},{en:'few',cs:'několik'},
+  {en:'open',cs:'otevřít'},{en:'seem',cs:'zdát se'},{en:'together',cs:'společně'},{en:'next',cs:'příští/další'},{en:'white',cs:'bílý'},
+  {en:'children',cs:'děti'},{en:'begin',cs:'začít'},{en:'got',cs:'dostal'},{en:'walk',cs:'chodit'},{en:'example',cs:'příklad'},
+  {en:'ease',cs:'pohoda/ulehčit'},{en:'paper',cs:'papír'},{en:'group',cs:'skupina'},{en:'always',cs:'vždy'},{en:'music',cs:'hudba'},
+  {en:'those',cs:'ti/ty'},{en:'both',cs:'oba'},{en:'mark',cs:'značka/označit'},{en:'book',cs:'kniha'},{en:'letter',cs:'dopis/písmeno'},
+  {en:'until',cs:'dokud'},{en:'mile',cs:'míle'},{en:'river',cs:'řeka'},{en:'car',cs:'auto'},{en:'feet',cs:'nohy/stopy'},
+  {en:'care',cs:'péče/starat se'},{en:'second',cs:'druhý/sekunda'},{en:'enough',cs:'dost'},{en:'plain',cs:'prostý/rovina'},{en:'girl',cs:'dívka'},
+  {en:'usual',cs:'obvyklý'},{en:'young',cs:'mladý'},{en:'ready',cs:'připravený'},{en:'above',cs:'nad'},{en:'ever',cs:'někdy/vůbec'},
+  {en:'red',cs:'červený'},{en:'list',cs:'seznam'},{en:'though',cs:'i když'},{en:'feel',cs:'cítit'},{en:'talk',cs:'mluvit'},
+  {en:'bird',cs:'pták'},{en:'soon',cs:'brzy'},{en:'body',cs:'tělo'},{en:'dog',cs:'pes'},{en:'family',cs:'rodina'},
+  {en:'direct',cs:'přímý/řídit'},{en:'pose',cs:'poza/předstírat'},{en:'leave',cs:'odejít'},{en:'song',cs:'píseň'},{en:'measure',cs:'měřit/míra'},
+  {en:'door',cs:'dveře'},{en:'product',cs:'produkt'},{en:'black',cs:'černý'},{en:'short',cs:'krátký'},{en:'numeral',cs:'číslice'},
+  {en:'class',cs:'třída'},{en:'wind',cs:'vítr'},{en:'question',cs:'otázka'},{en:'happen',cs:'stát se'},{en:'complete',cs:'dokončit/úplný'},
+  {en:'ship',cs:'loď'},{en:'area',cs:'oblast'},{en:'half',cs:'polovina'},{en:'rock',cs:'skála/kámen'},{en:'order',cs:'objednávka/pořadí'},
+  {en:'fire',cs:'oheň'},{en:'south',cs:'jih'},{en:'problem',cs:'problém'},{en:'piece',cs:'kus'},{en:'told',cs:'řekl'},
+  {en:'knew',cs:'věděl'},{en:'pass',cs:'projít/průkaz'},{en:'since',cs:'od té doby'},{en:'top',cs:'vrchol'},{en:'whole',cs:'celý'},
+  {en:'king',cs:'král'},{en:'street',cs:'ulice'},{en:'inch',cs:'palec (míra)'},{en:'multiply',cs:'násobit'},{en:'nothing',cs:'nic'},
+  {en:'course',cs:'kurz/samozřejmě'},{en:'stay',cs:'zůstat'},{en:'wheel',cs:'kolo'},{en:'full',cs:'plný'},{en:'force',cs:'síla'},
+  {en:'blue',cs:'modrý'},{en:'object',cs:'předmět/namítat'},{en:'decide',cs:'rozhodnout'},{en:'surface',cs:'povrch'},{en:'deep',cs:'hluboký'},
+  {en:'moon',cs:'měsíc'},{en:'island',cs:'ostrov'},{en:'foot',cs:'noha/stopa'},{en:'system',cs:'systém'},{en:'busy',cs:'zaneprázdněný'},
+  {en:'test',cs:'test'},{en:'record',cs:'záznam/nahrát'},{en:'boat',cs:'loďka'},{en:'common',cs:'běžný/společný'},{en:'gold',cs:'zlato'},
+  {en:'possible',cs:'možný'},{en:'plane',cs:'letadlo/rovina'},{en:'stead',cs:'místo (v zastoupení)'},{en:'dry',cs:'suchý'},{en:'wonder',cs:'divit se/zázrak'},
+  {en:'laugh',cs:'smát se'},{en:'thousand',cs:'tisíc'},{en:'ago',cs:'před (časem)'},{en:'ran',cs:'běžel'},{en:'check',cs:'zkontrolovat'},
+  {en:'game',cs:'hra'},{en:'shape',cs:'tvar'},{en:'equate',cs:'rovnat se'},{en:'hot',cs:'horký'},{en:'miss',cs:'chybět/slečna'},
+  {en:'brought',cs:'přinesl'},{en:'heat',cs:'teplo'},{en:'snow',cs:'sníh'},{en:'tire',cs:'pneumatika/unavit'},{en:'bring',cs:'přinést'},
+  {en:'yes',cs:'ano'},{en:'distant',cs:'vzdálený'},{en:'fill',cs:'naplnit'},{en:'east',cs:'východ'},{en:'paint',cs:'malovat/barva'},
+  {en:'language',cs:'jazyk'},{en:'among',cs:'mezi (více věcmi)'},{en:'grand',cs:'velkolepý'},{en:'ball',cs:'míč/ples'},{en:'yet',cs:'ještě/přesto'},
+  {en:'wave',cs:'vlna/mávat'},{en:'drop',cs:'kapka/pustit'},{en:'heart',cs:'srdce'},{en:'am',cs:'jsem'},{en:'present',cs:'přítomný/dárek'},
+  {en:'heavy',cs:'těžký'},{en:'dance',cs:'tančit'},{en:'engine',cs:'motor'},{en:'position',cs:'pozice'},{en:'arm',cs:'paže/zbraň'},
+  {en:'wide',cs:'široký'},{en:'sail',cs:'plout/plachta'},{en:'material',cs:'materiál'},{en:'size',cs:'velikost'},{en:'vary',cs:'lišit se'},
+  {en:'settle',cs:'usadit se'},{en:'speak',cs:'mluvit'},{en:'weight',cs:'váha'},{en:'general',cs:'obecný/generál'},{en:'ice',cs:'led'},
+  {en:'matter',cs:'věc/záležet'},{en:'circle',cs:'kruh'},{en:'pair',cs:'pár'},{en:'include',cs:'zahrnovat'},{en:'divide',cs:'dělit'},
+  {en:'syllable',cs:'slabika'},{en:'felt',cs:'cítil/plst'},{en:'perhaps',cs:'možná'},{en:'pick',cs:'vybrat/trhat'},{en:'sudden',cs:'náhlý'},
+  {en:'count',cs:'počítat'},{en:'square',cs:'náměstí/čtverec'},{en:'reason',cs:'důvod'},{en:'length',cs:'délka'},{en:'represent',cs:'zastupovat'},
+  {en:'art',cs:'umění'},{en:'subject',cs:'předmět/podrobit'},{en:'region',cs:'oblast'},{en:'energy',cs:'energie'},{en:'hunt',cs:'lovit'},
+  {en:'probable',cs:'pravděpodobný'},{en:'bed',cs:'postel'},{en:'brother',cs:'bratr'},{en:'egg',cs:'vejce'},{en:'ride',cs:'jet/jezdit'},
+  {en:'cell',cs:'buňka'},{en:'believe',cs:'věřit'},{en:'fraction',cs:'zlomek'},{en:'forest',cs:'les'},{en:'sit',cs:'sedět'},
+  {en:'race',cs:'závod/rasa'},{en:'window',cs:'okno'},{en:'store',cs:'obchod/uložit'},{en:'summer',cs:'léto'},{en:'train',cs:'vlak/trénovat'},
+  {en:'sleep',cs:'spát'},{en:'prove',cs:'dokázat'},{en:'lone',cs:'osamělý'},{en:'leg',cs:'noha'},{en:'exercise',cs:'cvičení'},
+  {en:'wall',cs:'zeď'},{en:'catch',cs:'chytit'},{en:'mount',cs:'hora/nasednout'},{en:'wish',cs:'přát si'},{en:'sky',cs:'nebe/obloha'},
+  {en:'board',cs:'deska/nastoupit'},{en:'joy',cs:'radost'},{en:'winter',cs:'zima'},{en:'sat',cs:'seděl'},{en:'written',cs:'napsaný'},
+  {en:'wild',cs:'divoký'},{en:'instrument',cs:'nástroj'},{en:'kept',cs:'uchoval'},{en:'glass',cs:'sklo/sklenice'},{en:'grass',cs:'tráva'},
+  {en:'cow',cs:'kráva'},{en:'job',cs:'práce/zaměstnání'},{en:'edge',cs:'okraj'},{en:'sign',cs:'znak/podepsat'},{en:'visit',cs:'navštívit'},
+  {en:'past',cs:'minulost/minulý'},{en:'soft',cs:'měkký'},{en:'fun',cs:'zábava'},{en:'bright',cs:'jasný'},{en:'gas',cs:'plyn'},
+  {en:'weather',cs:'počasí'},{en:'month',cs:'měsíc'},{en:'million',cs:'milion'},{en:'bear',cs:'medvěd/nést'},{en:'finish',cs:'dokončit'},
+  {en:'happy',cs:'šťastný'},{en:'hope',cs:'doufat/naděje'},{en:'flower',cs:'květ'},{en:'clothe',cs:'oblékat'},{en:'strange',cs:'zvláštní'},
+  {en:'gone',cs:'pryč'},{en:'jump',cs:'skočit'},{en:'baby',cs:'miminko'},{en:'eight',cs:'osm'},{en:'village',cs:'vesnice'},
+  {en:'meet',cs:'setkat se'},{en:'root',cs:'kořen'},{en:'buy',cs:'koupit'},{en:'raise',cs:'zvednout/vychovat'},{en:'solve',cs:'vyřešit'},
+  {en:'metal',cs:'kov'},{en:'whether',cs:'zda'},{en:'push',cs:'tlačit'},{en:'seven',cs:'sedm'},{en:'paragraph',cs:'odstavec'},
+  {en:'third',cs:'třetí'},{en:'shall',cs:'shall (budu)'},{en:'held',cs:'držel'},{en:'hair',cs:'vlasy'},{en:'describe',cs:'popsat'},
+  {en:'cook',cs:'vařit/kuchař'},{en:'floor',cs:'podlaha'},{en:'either',cs:'buď/ani'},{en:'result',cs:'výsledek'},{en:'burn',cs:'hořet'},
+  {en:'hill',cs:'kopec'},{en:'safe',cs:'bezpečný'},{en:'cat',cs:'kočka'},{en:'century',cs:'století'},{en:'consider',cs:'zvážit'},
+  {en:'type',cs:'typ/psát na stroji'},{en:'law',cs:'zákon'},{en:'bit',cs:'kousek/trochu'},{en:'coast',cs:'pobřeží'},{en:'copy',cs:'kopie/kopírovat'},
+  {en:'phrase',cs:'fráze'},{en:'silent',cs:'tichý'},{en:'tall',cs:'vysoký (o osobě)'},{en:'sand',cs:'písek'},{en:'soil',cs:'půda'},
+  {en:'roll',cs:'válet se/rohlík'},{en:'temperature',cs:'teplota'},{en:'finger',cs:'prst'},{en:'industry',cs:'průmysl'},{en:'value',cs:'hodnota'},
+  {en:'fight',cs:'bojovat'},{en:'lie',cs:'lhát/ležet'},{en:'beat',cs:'bít/rytmus'},{en:'excite',cs:'nadchnout'},{en:'natural',cs:'přirozený'},
+  {en:'view',cs:'pohled'},{en:'sense',cs:'smysl/cítit'},{en:'ear',cs:'ucho'},{en:'else',cs:'jinak/jiný'},{en:'quite',cs:'docela'},
+  {en:'broke',cs:'přerušil/bez peněz'},{en:'case',cs:'případ/kufr'},{en:'middle',cs:'střed'},{en:'kill',cs:'zabít'},{en:'son',cs:'syn'},
+  {en:'lake',cs:'jezero'},{en:'moment',cs:'moment'},{en:'scale',cs:'stupnice/váha'},{en:'loud',cs:'hlasitý'},{en:'spring',cs:'jaro/pružina'},
+  {en:'observe',cs:'pozorovat'},{en:'child',cs:'dítě'},{en:'straight',cs:'rovný/přímo'},{en:'consonant',cs:'souhláska'},{en:'nation',cs:'národ'},
+  {en:'dictionary',cs:'slovník'},{en:'milk',cs:'mléko'},{en:'speed',cs:'rychlost'},{en:'method',cs:'metoda'},{en:'organ',cs:'orgán'},
+  {en:'pay',cs:'platit'},{en:'age',cs:'věk'},{en:'section',cs:'část/sekce'},{en:'dress',cs:'šaty/obléci se'},{en:'cloud',cs:'mrak'},
+  {en:'surprise',cs:'překvapení'},{en:'quiet',cs:'tichý/klid'},{en:'stone',cs:'kámen'},{en:'tiny',cs:'malinký'},{en:'climb',cs:'lézt/stoupat'},
+  {en:'cool',cs:'chladný/skvělý'},{en:'design',cs:'design/navrhnout'},{en:'poor',cs:'chudý'},{en:'lot',cs:'hodně/pozemek'},{en:'experiment',cs:'experiment'},
+  {en:'bottom',cs:'dno/spodní'},{en:'key',cs:'klíč'},{en:'iron',cs:'železo/žehlit'},{en:'single',cs:'jediný/svobodný'},{en:'stick',cs:'hůl/přilepit'},
+  {en:'flat',cs:'plochý/byt'},{en:'twenty',cs:'dvacet'},{en:'skin',cs:'kůže'},{en:'smile',cs:'usmívat se'},{en:'crease',cs:'záhyb/pomačkat'},
+  {en:'hole',cs:'díra'},{en:'trade',cs:'obchod/obchodovat'},{en:'melody',cs:'melodie'},{en:'trip',cs:'výlet/zakopnout'},{en:'office',cs:'kancelář'},
+  {en:'receive',cs:'dostat'},{en:'row',cs:'řada/veslovat'},{en:'mouth',cs:'ústa'},{en:'exact',cs:'přesný'},{en:'symbol',cs:'symbol'},
+  {en:'die',cs:'zemřít'},{en:'least',cs:'nejméně'},{en:'trouble',cs:'potíže'},{en:'shout',cs:'křičet'},{en:'except',cs:'kromě'},
+  {en:'wrote',cs:'napsal'},{en:'seed',cs:'semínko'},{en:'tone',cs:'tón'},{en:'join',cs:'přidat se'},{en:'suggest',cs:'navrhnout'},
+  {en:'clean',cs:'čistý/čistit'},{en:'break',cs:'přestávka/rozbít'},{en:'lady',cs:'dáma'},{en:'yard',cs:'dvůr/yard'},{en:'rise',cs:'stoupat/vstávat'},
+  {en:'bad',cs:'špatný'},{en:'blow',cs:'foukat/rána'},{en:'oil',cs:'olej'},{en:'blood',cs:'krev'},{en:'touch',cs:'dotknout se'},
+  {en:'grew',cs:'rostl'},{en:'cent',cs:'cent'},{en:'mix',cs:'míchat'},{en:'team',cs:'tým'},{en:'wire',cs:'drát'},
+  {en:'cost',cs:'cena/stát (peníze)'},{en:'lost',cs:'ztracený'},{en:'brown',cs:'hnědý'},{en:'wear',cs:'nosit (oblečení)'},{en:'garden',cs:'zahrada'},
+  {en:'equal',cs:'rovný/stejný'},{en:'sent',cs:'poslal'},{en:'choose',cs:'vybrat'},{en:'fell',cs:'padl'},{en:'fit',cs:'hodit se/fit'},
+  {en:'flow',cs:'téct/tok'},{en:'fair',cs:'spravedlivý/veletrh'},{en:'bank',cs:'banka/břeh'},{en:'collect',cs:'sbírat'},{en:'save',cs:'zachránit/ušetřit'},
+  {en:'control',cs:'ovládat/kontrola'},{en:'decimal',cs:'desetinný'},{en:'gentle',cs:'jemný'},{en:'woman',cs:'žena'},{en:'captain',cs:'kapitán'},
+  {en:'practice',cs:'praxe/cvičit'},{en:'separate',cs:'oddělit/samostatný'},{en:'difficult',cs:'obtížný'},{en:'doctor',cs:'doktor'},{en:'please',cs:'prosím/potěšit'},
+  {en:'protect',cs:'chránit'},{en:'noon',cs:'poledne'},{en:'whose',cs:'čí'},{en:'locate',cs:'najít/umístit'},{en:'ring',cs:'prsten/zvonit'},
+  {en:'character',cs:'charakter/postava'},{en:'insect',cs:'hmyz'},{en:'caught',cs:'chytil'},{en:'period',cs:'období/tečka'},{en:'indicate',cs:'naznačit'},
+  {en:'radio',cs:'rádio'},{en:'spoke',cs:'mluvil/paprsek'},{en:'atom',cs:'atom'},{en:'human',cs:'lidský/člověk'},{en:'history',cs:'dějiny'},
+  {en:'effect',cs:'efekt/vliv'},{en:'electric',cs:'elektrický'},{en:'expect',cs:'očekávat'},{en:'crop',cs:'plodina/ostříhat'},{en:'modern',cs:'moderní'},
+  {en:'element',cs:'prvek'},{en:'hit',cs:'udeřit/hit'},{en:'student',cs:'student'},{en:'corner',cs:'roh'},{en:'supply',cs:'dodávat/zásoby'},
+  {en:'whose',cs:'čí'},{en:'locate',cs:'najít'},{en:'rod',cs:'tyč'},{en:'bought',cs:'koupil'},{en:'lead',cs:'vést/olovo'},
+  {en:'ghost',cs:'duch'},{en:'nation',cs:'národ'},{en:'green',cs:'zelený'},{en:'window',cs:'okno'},{en:'observe',cs:'pozorovat'},
+];
+
+function renderTop500() {
+  const search = (document.getElementById('top500-search')?.value || '').toLowerCase();
+  const list = document.getElementById('top500-list');
+  const alreadyHave = new Set(words.map(w => w.en.toLowerCase()));
+  const top500selected = JSON.parse(localStorage.getItem('top500_selected') || '[]');
+  const selectedSet = new Set(top500selected);
+
+  const filtered = TOP500.filter(w =>
+    !search || w.en.includes(search) || w.cs.includes(search)
+  );
+
+  const added = top500selected.filter(e => alreadyHave.has(e)).length;
+  const pending = top500selected.filter(e => !alreadyHave.has(e)).length;
+  document.getElementById('top500-added-count').textContent =
+    `${pending > 0 ? pending + ' vybráno · ' : ''}${added} přidáno`;
+
+  list.innerHTML = filtered.map(w => {
+    const have = alreadyHave.has(w.en.toLowerCase());
+    const sel = selectedSet.has(w.en.toLowerCase());
+    return `<div class="top500-item ${have ? 'already' : sel ? 'selected' : ''}"
+      onclick="${have ? '' : `toggleTop500('${w.en.replace(/'/g,"\\'")}','${w.cs.replace(/'/g,"\\'")}');renderTop500()`}">
+      <div class="top500-check">${have ? '✓' : sel ? '✓' : ''}</div>
+      <div class="top500-en">${w.en}</div>
+      <div class="top500-cs">${w.cs}</div>
+    </div>`;
+  }).join('');
+
+  const btn = document.getElementById('top500-add-btn');
+  if (btn) btn.style.display = pending > 0 ? 'block' : 'none';
+  if (btn) btn.textContent = `přidat ${pending} slovíček do kvízu`;
+}
+
+function toggleTop500(en, cs) {
+  let sel = JSON.parse(localStorage.getItem('top500_selected') || '[]');
+  const idx = sel.indexOf(en.toLowerCase());
+  if (idx === -1) sel.push(en.toLowerCase());
+  else sel.splice(idx, 1);
+  localStorage.setItem('top500_selected', JSON.stringify(sel));
+}
+
+function addTop500Selected() {
+  const sel = JSON.parse(localStorage.getItem('top500_selected') || '[]');
+  const now = Date.now();
+  let count = 0;
+  sel.forEach((en, i) => {
+    if (!words.find(w => w.en === en)) {
+      const match = TOP500.find(w => w.en.toLowerCase() === en);
+      if (match) {
+        words.push({ id: now + i, en: match.en, cs: match.cs, added: now + i, history: [], interval: 0, easeFactor: 2.5, nextReview: 0 });
+        count++;
+      }
+    }
+  });
+  localStorage.removeItem('top500_selected');
+  save();
+  renderTop500();
+  if (count > 0) alert(`Přidáno ${count} slovíček! 🎉`);
+}
+
+// ——— TABS ———
+function switchTab(tab) {
+  const tabs = ['quiz-choice','quiz-type','add','overview','top500'];
+  tabs.forEach(t => {
+    document.getElementById('screen-'+t).classList.toggle('active', t===tab);
+  });
+  document.querySelectorAll('.nav-btn').forEach((b,i) => {
+    b.classList.toggle('active', tabs[i]===tab);
+  });
+  if (tab==='add') renderAddList();
+  if (tab==='overview') renderOverview();
+  if (tab==='quiz-choice') startQuizChoice();
+  if (tab==='quiz-type') startQuizType();
+  if (tab==='top500') renderTop500();
+}
+
+// ——— INIT ———
+const PRESET = [
+  {en:'look forward to',cs:'těšit se na'},
+  {en:'invent',cs:'vymyslet'},
+  {en:'reasons',cs:'důvody'},
+  {en:'tan',cs:'opálení'},
+  {en:'interviewed',cs:'dotazovaný'},
+  {en:'increasingly',cs:'čím dál více'},
+  {en:'jealous',cs:'žárlivý'},
+  {en:'steep',cs:'prudký'},
+  {en:'needs',cs:'potřeby'},
+  {en:'below',cs:'níže'},
+  {en:'kind',cs:'druh'},
+  {en:'excited',cs:'nadšený'},
+  {en:'frightened',cs:'vyděšený'},
+  {en:'find',cs:'považovat'},
+  {en:'tiles',cs:'kachličky'},
+  {en:'tiler',cs:'obkladač'},
+  {en:'flavour',cs:'příchuť'},
+  {en:'by sight',cs:'od pohledu'},
+  {en:'addiction',cs:'závislost'},
+  {en:'addicted to',cs:'závislý na'},
+  {en:'feel like eating',cs:'mít chuť jíst'},
+  {en:'furniture',cs:'nábytek'},
+  {en:'necessary',cs:'nutné'},
+  {en:'measure',cs:'měřit'},
+  {en:'remaining',cs:'zbývající'},
+  {en:'count',cs:'počítat'},
+  {en:'partial',cs:'částečný'},
+  {en:'last',cs:'poslední'},
+  {en:'after',cs:'po'},
+  {en:'behind',cs:'za'},
+  {en:'yesterday',cs:'včera'},
+  {en:'previous day',cs:'předchozí den'},
+  {en:'last time',cs:'minule'},
+  {en:'another',cs:'další'},
+];
+
+if (words.length === 0) {
+  const now = Date.now();
+  PRESET.forEach((p, i) => {
+    words.push({ id: now + i, en: p.en, cs: p.cs, added: now + i, history: [], interval: 0, easeFactor: 2.5, nextReview: 0 });
+  });
+  save();
+} else {
+  // Přidej nová slovíčka která ještě nejsou uložena
+  let added = false;
+  const now = Date.now();
+  PRESET.forEach((p, i) => {
+    if (!words.find(w => w.en === p.en)) {
+      words.push({ id: now + i, en: p.en, cs: p.cs, added: now + i, history: [], interval: 0, easeFactor: 2.5, nextReview: 0 });
+      added = true;
+    }
+  });
+  if (added) save();
+}
+
+// Počkej až se DOM načte a pak spusť kvíz
+document.addEventListener('DOMContentLoaded', () => startQuizChoice());
+// Záloha pro případ že DOMContentLoaded už proběhl
+if (document.readyState !== 'loading') startQuizChoice();
+</script>
+</body>
+</html>
