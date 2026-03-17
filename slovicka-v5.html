@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Moje slovíčka v5</title>
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%234CAF50'/%3E%3Ctext x='90' y='130' font-family='Arial' font-size='120' fill='white' text-anchor='middle'%3ES%3C/text%3E%3C/svg%3E">
+<title>Moje slovíčka v6</title>
+
 <!-- PWA -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Slovíčka v5">
+<meta name="apple-mobile-web-app-title" content="Slovíčka v6">
 <meta name="theme-color" content="#F7F4EE">
 <link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22Moje%20slov%C3%AD%C4%8Dka%22%2C%22short_name%22%3A%22Slov%C3%AD%C4%8Dka%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23F7F4EE%22%2C%22theme_color%22%3A%22%23F7F4EE%22%7D">
 
@@ -328,6 +328,8 @@
     <button class="nav-btn" onclick="switchTab('add')">+ přidat</button>
     <button class="nav-btn" onclick="switchTab('overview')">přehled</button>
     <button class="nav-btn" onclick="switchTab('top500')">top 500</button>
+    <button class="nav-btn" onclick="switchTab('fraze')">fráze</button>
+    <button class="nav-btn" onclick="switchTab('vety')">věty</button>
   </nav>
 
   <!-- KVÍZ výběr -->
@@ -384,6 +386,28 @@ Reasons	Důvody" rows="6" style="width:100%;padding:9px 12px;border:1px solid va
     <input type="text" id="top500-search" placeholder="hledat…" oninput="renderTop500()" style="margin-bottom:1rem" />
     <div id="top500-list"></div>
     <button class="top500-add-btn" id="top500-add-btn" onclick="addTop500Selected()">přidat vybraná slovíčka</button>
+  </div>
+
+  <!-- FRÁZE -->
+  <div id="screen-fraze" class="screen">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">500 nejpoužívanějších frází</div>
+      <div id="fraze-added-count" style="font-size:11px;color:var(--muted)"></div>
+    </div>
+    <input type="text" id="fraze-search" placeholder="hledat…" oninput="renderFraze()" style="margin-bottom:1rem" />
+    <div id="fraze-list"></div>
+    <button class="top500-add-btn" id="fraze-add-btn" onclick="addFrazeSelected()">přidat vybrané fráze</button>
+  </div>
+
+  <!-- VĚTY -->
+  <div id="screen-vety" class="screen">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">nejčastější věty</div>
+      <div id="vety-added-count" style="font-size:11px;color:var(--muted)"></div>
+    </div>
+    <input type="text" id="vety-search" placeholder="hledat…" oninput="renderVety()" style="margin-bottom:1rem" />
+    <div id="vety-list"></div>
+    <button class="top500-add-btn" id="vety-add-btn" onclick="addVetySelected()">přidat vybrané věty</button>
   </div>
 
   <!-- PŘEHLED -->
@@ -1220,9 +1244,158 @@ function addTop500Selected() {
   if (count > 0) alert(`Přidáno ${count} slovíček! 🎉`);
 }
 
+// ——— FRÁZE ———
+const FRAZE = [
+  {en:'as soon as possible',cs:'co nejdříve'},{en:'in order to',cs:'aby/za účelem'},{en:'as well as',cs:'stejně jako/i'},
+  {en:'at least',cs:'alespoň'},{en:'at the same time',cs:'zároveň'},{en:'by the way',cs:'mimochodem'},
+  {en:'come on',cs:'pojď/no tak'},{en:'could you please',cs:'mohl bys prosím'},{en:'due to',cs:'kvůli/z důvodu'},
+  {en:'each other',cs:'navzájem'},{en:'even though',cs:'i přestože'},{en:'figure out',cs:'přijít na to'},
+  {en:'find out',cs:'zjistit'},{en:'first of all',cs:'za prvé/nejprve'},{en:'for example',cs:'například'},
+  {en:'get along',cs:'vycházet s někým'},{en:'get rid of',cs:'zbavit se'},{en:'give up',cs:'vzdát se'},
+  {en:'go ahead',cs:'jdi do toho/pokračuj'},{en:'good luck',cs:'hodně štěstí'},{en:'hang on',cs:'počkej/drž se'},
+  {en:'have a good time',cs:'dobře se bavit'},{en:'how are you',cs:'jak se máš'},{en:'I agree',cs:'souhlasím'},
+  {en:'I am sorry',cs:'omlouvám se'},{en:'I cannot afford',cs:'nemohu si dovolit'},{en:'I do not mind',cs:'nevadí mi'},
+  {en:'I look forward to',cs:'těším se na'},{en:'I mean',cs:'myslím tím'},{en:'I need help',cs:'potřebuji pomoc'},
+  {en:'in addition',cs:'navíc/kromě toho'},{en:'in fact',cs:'ve skutečnosti'},{en:'in other words',cs:'jinými slovy'},
+  {en:'in spite of',cs:'navzdory'},{en:'in the end',cs:'nakonec'},{en:'it depends',cs:'záleží na tom'},
+  {en:'it does not matter',cs:'na tom nezáleží'},{en:'it is up to you',cs:'je to na tobě'},{en:'keep in mind',cs:'mít na paměti'},
+  {en:'keep up the good work',cs:'tak dál/pokračuj v dobré práci'},{en:'let me know',cs:'dej mi vědět'},
+  {en:'look forward to',cs:'těšit se na'},{en:'look out',cs:'pozor/dávej si pozor'},{en:'make sure',cs:'ujistit se'},
+  {en:'never mind',cs:'nevadí/na tom nezáleží'},{en:'no problem',cs:'žádný problém'},{en:'no wonder',cs:'není divu'},
+  {en:'not at all',cs:'vůbec ne/není zač'},{en:'of course',cs:'samozřejmě'},{en:'on the other hand',cs:'na druhou stranu'},
+  {en:'on time',cs:'včas'},{en:'once in a while',cs:'občas/čas od času'},{en:'on behalf of',cs:'jménem/za'},
+  {en:'pay attention',cs:'dávat pozor'},{en:'pick up',cs:'vyzvednout/zvednout'},{en:'point of view',cs:'hledisko/pohled'},
+  {en:'put off',cs:'odložit/odkládat'},{en:'right away',cs:'hned/ihned'},{en:'right now',cs:'právě teď'},
+  {en:'run out of',cs:'dojít/nemít víc'},{en:'set up',cs:'nastavit/zřídit'},{en:'show up',cs:'ukázat se/přijít'},
+  {en:'so far',cs:'dosud/zatím'},{en:'take care',cs:'dávej na sebe pozor'},{en:'take it easy',cs:'v klidu/neboj se'},
+  {en:'take part in',cs:'účastnit se'},{en:'take place',cs:'konat se/odehrát se'},{en:'thank you so much',cs:'mockrát děkuji'},
+  {en:'that is why',cs:'proto'},{en:'the sooner the better',cs:'čím dříve tím lépe'},{en:'think about',cs:'přemýšlet o'},
+  {en:'to be honest',cs:'upřímně řečeno'},{en:'to be continued',cs:'pokračování příště'},{en:'to be precise',cs:'přesněji řečeno'},
+  {en:'turn off',cs:'vypnout'},{en:'turn on',cs:'zapnout'},{en:'used to',cs:'bývával/dříve'},
+  {en:'watch out',cs:'pozor/dávej pozor'},{en:'what about',cs:'co takhle/a co'},{en:'what if',cs:'co kdyby'},
+  {en:'whether or not',cs:'ať už nebo ne'},{en:'work out',cs:'vyjít/cvičit'},{en:'you are welcome',cs:'není zač/prosím'},
+  {en:'after all',cs:'koneckonců'},{en:'all of a sudden',cs:'najednou/náhle'},{en:'all right',cs:'dobře/v pořádku'},
+  {en:'as a matter of fact',cs:'vlastně/ve skutečnosti'},{en:'as far as I know',cs:'pokud vím'},
+  {en:'as long as',cs:'pokud/dokud'},{en:'at first',cs:'zpočátku/nejprve'},{en:'break down',cs:'porouchat se/zhroutit se'},
+  {en:'bring up',cs:'vychovat/zmínit'},{en:'by accident',cs:'náhodou'},{en:'by chance',cs:'náhodou/shodou okolností'},
+  {en:'call off',cs:'zrušit'},{en:'carry on',cs:'pokračovat'},{en:'catch up',cs:'dohonat/dohnat'},
+  {en:'come across',cs:'narazit na/působit dojmem'},{en:'come up with',cs:'přijít s nápadem'},
+  {en:'cut down on',cs:'omezit/snížit'},{en:'deal with',cs:'zabývat se/řešit'},{en:'do without',cs:'obejít se bez'},
+  {en:'end up',cs:'skončit/nakonec skončit'},{en:'fall apart',cs:'rozpadnout se'},{en:'fall behind',cs:'zaostávat'},
+  {en:'feel free',cs:'klidně/neboj se'},{en:'get away',cs:'utéct/odjet'},{en:'get back',cs:'vrátit se'},
+  {en:'get over',cs:'překonat/zotavit se'},{en:'get used to',cs:'zvyknout si na'},{en:'give away',cs:'rozdávat/prozradit'},
+  {en:'go on',cs:'pokračovat/co se děje'},{en:'go through',cs:'projít si/prožít'},{en:'grow up',cs:'vyrůst/dospět'},
+  {en:'hand in',cs:'odevzdat'},{en:'hold on',cs:'počkej/drž se'},{en:'how come',cs:'jak to že/proč'},
+  {en:'I am afraid',cs:'obávám se'},{en:'I bet',cs:'vsadím se'},{en:'I cannot wait',cs:'nemohu se dočkat'},
+  {en:'I guess',cs:'myslím/předpokládám'},{en:'in a hurry',cs:'ve spěchu'},{en:'in charge of',cs:'zodpovědný za'},
+  {en:'in common',cs:'společný/společně'},{en:'in general',cs:'obecně/celkově'},{en:'in particular',cs:'zvláště/konkrétně'},
+  {en:'in time',cs:'včas/postupem času'},{en:'it turns out',cs:'ukázalo se'},{en:'just in case',cs:'pro případ/pro jistotu'},
+  {en:'kind of',cs:'jaksi/trochu'},{en:'leave out',cs:'vynechat/opomenout'},{en:'let go',cs:'pustit/nechat jít'},
+  {en:'look like',cs:'vypadat jako'},{en:'look up',cs:'vyhledat/podívat se nahoru'},{en:'make fun of',cs:'dělat si legraci z'},
+  {en:'make sense',cs:'dávat smysl'},{en:'make up',cs:'vymyslet/usmířit se'},{en:'more or less',cs:'víceméně'},
+  {en:'move on',cs:'jít dál/pokračovat'},{en:'no longer',cs:'už ne'},{en:'now and then',cs:'občas/tu a tam'},
+];
+
+const VETY = [
+  {en:'How are you doing?',cs:'Jak se ti daří?'},{en:'Nice to meet you.',cs:'Rád tě poznávám.'},
+  {en:'What is your name?',cs:'Jak se jmenuješ?'},{en:'Where are you from?',cs:'Odkud pocházíš?'},
+  {en:'How old are you?',cs:'Kolik ti je let?'},{en:'What do you do for a living?',cs:'Čím se živíš?'},
+  {en:'Can you help me please?',cs:'Můžeš mi prosím pomoci?'},{en:'I do not understand.',cs:'Nerozumím.'},
+  {en:'Could you repeat that?',cs:'Mohl bys to zopakovat?'},{en:'What does this mean?',cs:'Co to znamená?'},
+  {en:'How much does it cost?',cs:'Kolik to stojí?'},{en:'Where is the bathroom?',cs:'Kde je záchod?'},
+  {en:'I am looking for...',cs:'Hledám...'},{en:'Can I have the bill please?',cs:'Mohu dostat účet prosím?'},
+  {en:'What time is it?',cs:'Kolik je hodin?'},{en:'I am late.',cs:'Mám zpoždění.'},
+  {en:'Let me think about it.',cs:'Nechte mě to promyslet.'},{en:'That is a great idea.',cs:'To je skvělý nápad.'},
+  {en:'I totally agree with you.',cs:'Úplně s tebou souhlasím.'},{en:'I am not sure about that.',cs:'Nejsem si tím jistý.'},
+  {en:'What do you think?',cs:'Co si myslíš?'},{en:'It depends on the situation.',cs:'Záleží na situaci.'},
+  {en:'Could you speak more slowly?',cs:'Mohl bys mluvit pomaleji?'},{en:'I will get back to you.',cs:'Ozvu se ti.'},
+  {en:'Thank you for your help.',cs:'Děkuji za tvoji pomoc.'},{en:'You are absolutely right.',cs:'Máš naprostou pravdu.'},
+  {en:'I have no idea.',cs:'Nemám tušení.'},{en:'That makes sense.',cs:'To dává smysl.'},
+  {en:'Let me know if you need anything.',cs:'Dej mi vědět pokud něco potřebuješ.'},
+  {en:'I am really sorry to hear that.',cs:'Je mi to opravdu líto.'},{en:'What are you up to?',cs:'Co děláš/co chystáš?'},
+  {en:'I am just kidding.',cs:'Jen žertuji.'},{en:'Take your time.',cs:'Nespěchej/vezmi si čas.'},
+  {en:'It is not a big deal.',cs:'To není nic velkého.'},{en:'I could not agree more.',cs:'Naprosto souhlasím.'},
+  {en:'What seems to be the problem?',cs:'V čem je problém?'},{en:'I will keep that in mind.',cs:'Budu mít to na paměti.'},
+  {en:'That is none of your business.',cs:'To není tvoje věc.'},{en:'How long have you been here?',cs:'Jak dlouho jsi tu?'},
+  {en:'I am looking forward to it.',cs:'Těším se na to.'},{en:'What brings you here?',cs:'Co tě sem přivádí?'},
+  {en:'I had a great time.',cs:'Báječně jsem se bavil.'},{en:'It was nice talking to you.',cs:'Bylo příjemné si popovídat.'},
+  {en:'See you later.',cs:'Uvidíme se.'},{en:'Have a safe trip.',cs:'Šťastnou cestu.'},
+  {en:'Keep up the good work.',cs:'Tak dál pokračuj.'},{en:'I am proud of you.',cs:'Jsem na tebe hrdý.'},
+  {en:'You did a great job.',cs:'Odvedl jsi skvělou práci.'},{en:'What is going on?',cs:'Co se děje?'},
+  {en:'I cannot believe it.',cs:'Nemohu tomu uvěřit.'},{en:'That is incredible.',cs:'To je neuvěřitelné.'},
+  {en:'I owe you one.',cs:'Jsem ti dlužen.'},{en:'It is worth trying.',cs:'Stojí to za pokus.'},
+  {en:'Do not worry about it.',cs:'Nedělej si s tím starosti.'},{en:'I will figure it out.',cs:'Přijdu na to.'},
+  {en:'Let us get started.',cs:'Pojďme začít.'},{en:'I am on my way.',cs:'Jsem na cestě.'},
+  {en:'I will be right back.',cs:'Hned se vrátím.'},{en:'That reminds me.',cs:'To mi připomíná.'},
+  {en:'To be honest with you.',cs:'Abych byl s tebou upřímný.'},{en:'Long time no see.',cs:'Dlouho jsem tě neviděl.'},
+  {en:'How have you been?',cs:'Jak ses měl?'},{en:'I miss you.',cs:'Chybíš mi.'},
+  {en:'I cannot make it.',cs:'Nemůžu přijít.'},{en:'Something came up.',cs:'Něco se přihodilo.'},
+  {en:'It is up to you.',cs:'Je to na tobě.'},{en:'Make yourself at home.',cs:'Buď jako doma.'},
+];
+
+function renderPickList(listId, searchId, countId, addBtnId, storageKey, data) {
+  const search = (document.getElementById(searchId)?.value || '').toLowerCase();
+  const list = document.getElementById(listId);
+  const alreadyHave = new Set(words.map(w => w.en.toLowerCase()));
+  const selected = JSON.parse(localStorage.getItem(storageKey) || '[]');
+  const selectedSet = new Set(selected);
+
+  const filtered = data.filter(w => !search || w.en.toLowerCase().includes(search) || w.cs.toLowerCase().includes(search));
+  const pending = selected.filter(e => !alreadyHave.has(e)).length;
+  const added = selected.filter(e => alreadyHave.has(e)).length;
+
+  document.getElementById(countId).textContent = `${pending > 0 ? pending + ' vybráno · ' : ''}${added} přidáno`;
+  list.innerHTML = filtered.map(w => {
+    const have = alreadyHave.has(w.en.toLowerCase());
+    const sel = selectedSet.has(w.en.toLowerCase());
+    return `<div class="top500-item ${have ? 'already' : sel ? 'selected' : ''}"
+      onclick="${have ? '' : `togglePickItem('${w.en.replace(/'/g,"\\'")}','${storageKey}');renderPickListById('${listId}','${searchId}','${countId}','${addBtnId}','${storageKey}')`}">
+      <div class="top500-check">${have || sel ? '✓' : ''}</div>
+      <div class="top500-en">${w.en}</div>
+      <div class="top500-cs">${w.cs}</div>
+    </div>`;
+  }).join('');
+
+  const btn = document.getElementById(addBtnId);
+  if (btn) { btn.style.display = pending > 0 ? 'block' : 'none'; btn.textContent = `přidat ${pending} položek`; }
+}
+
+function renderPickListById(listId, searchId, countId, addBtnId, storageKey) {
+  const dataMap = { 'fraze_selected': FRAZE, 'vety_selected': VETY, 'top500_selected': TOP500 };
+  renderPickList(listId, searchId, countId, addBtnId, storageKey, dataMap[storageKey]);
+}
+
+function togglePickItem(en, storageKey) {
+  let sel = JSON.parse(localStorage.getItem(storageKey) || '[]');
+  const idx = sel.indexOf(en.toLowerCase());
+  if (idx === -1) sel.push(en.toLowerCase()); else sel.splice(idx, 1);
+  localStorage.setItem(storageKey, JSON.stringify(sel));
+}
+
+function addSelectedItems(storageKey, data, callback) {
+  const sel = JSON.parse(localStorage.getItem(storageKey) || '[]');
+  const now = Date.now();
+  let count = 0;
+  sel.forEach((en, i) => {
+    if (!words.find(w => w.en.toLowerCase() === en)) {
+      const match = data.find(w => w.en.toLowerCase() === en);
+      if (match) { words.push({ id: now + i, en: match.en, cs: match.cs, added: now + i, history: [], interval: 0, easeFactor: 2.5, nextReview: 0 }); count++; }
+    }
+  });
+  localStorage.removeItem(storageKey);
+  save();
+  callback();
+  if (count > 0) alert(`Přidáno ${count} položek! 🎉`);
+}
+
+function renderFraze() { renderPickList('fraze-list','fraze-search','fraze-added-count','fraze-add-btn','fraze_selected',FRAZE); }
+function addFrazeSelected() { addSelectedItems('fraze_selected', FRAZE, renderFraze); }
+function renderVety() { renderPickList('vety-list','vety-search','vety-added-count','vety-add-btn','vety_selected',VETY); }
+function addVetySelected() { addSelectedItems('vety_selected', VETY, renderVety); }
+
 // ——— TABS ———
 function switchTab(tab) {
-  const tabs = ['quiz-choice','quiz-type','add','overview','top500'];
+  const tabs = ['quiz-choice','quiz-type','add','overview','top500','fraze','vety'];
   tabs.forEach(t => {
     document.getElementById('screen-'+t).classList.toggle('active', t===tab);
   });
@@ -1234,6 +1407,8 @@ function switchTab(tab) {
   if (tab==='quiz-choice') startQuizChoice();
   if (tab==='quiz-type') startQuizType();
   if (tab==='top500') renderTop500();
+  if (tab==='fraze') renderFraze();
+  if (tab==='vety') renderVety();
 }
 
 // ——— INIT ———
